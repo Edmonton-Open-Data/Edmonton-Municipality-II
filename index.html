@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>Edmonton Municipality</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css"/>
+        <style>
+            html, body {
+                height: 100%;
+                margin: 0;
+            }
+
+            #map {
+                height: 100%;
+                width: 100%;
+            }
+
+            .leaflet-overlay-pane svg path { pointer-events: auto; }
+
+            .leaflet-overlay-pane svg path:hover {
+                fill: transparent;
+                stroke: black;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-queue/1.2.3/queue.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/leaflet-d3-svg-overlay@2.2.0/L.D3SvgOverlay.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-noty/2.4.1/packaged/jquery.noty.packaged.min.js"></script>
+        <script>
+            
+            document.addEventListener("DOMContentLoaded", function() { 
+
+                var log = console.log;
+                noty( {id: "loading", text: "Loading Files (about 25.3MB). Please wait...", layout: "topCenter"} ); //to indicate files loading
+
+
+                //------------map------------
+                var map = L.map("map", {
+                    zoomSnap: 0.01,
+                    zoom:     zoomSelector(window.innerWidth)
+                    });
+                var positron = L.tileLayer("http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
+                    attribution: "©OpenStreetMap, ©CartoDB",
+                    minZoom:     1,
+                    maxZoom:     18
+                    });
+                var positronLabels = L.tileLayer("http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", {
+                    attribution: "©OpenStreetMap, ©CartoDB",
+                    pane:        "labels"
+                    });
+
+                map.setView( [53.55589, -113.506643] );
+                L.control.scale().addTo(map); 
+
+                //http://leafletjs.com/examples/map-panes/
+                positron.addTo(map);
+
+                map.createPane('labels');
+                map.getPane('labels').style.zIndex = 650;
+                map.getPane('labels').style.pointerEvents = 'none';
+                positronLabels.addTo(map);
+                
+                //making the map responsive
+                map.on("resize", function() {
+                    map.setZoom(zoomSelector(window.innerWidth));
+                    map.getBounds().getCenter();
+                });
+                
+                //to set the zoom based on window width
+                function zoomSelector(size) {
+                    //http://leafletjs.com/examples/choropleth/
+                    //cleaner format than three one line if statements
+                    return                                 size < 768   ? 10.06:
+                            size >= 768 && size != 1024 && size <= 1366 ? 10.71:
+                                                                          11.21;
+                }
+                //------------map------------
+                
+
+                //------------Data Loading and Processing------------ 
+                //loading the data
+                queue()
+                       .defer(d3.json, "https://raw.githubusercontent.com/mikelotis/Edmonton-Municipality-I/master/data/Edmonton_wards.json")            //wards
+                       .defer(d3.json, "https://raw.githubusercontent.com/mikelotis/Edmonton-Municipality-I/master/data/Edmonton_neighbourhoods.json")  //neighbourhoods
+                       .defer(d3.json, "https://raw.githubusercontent.com/mikelotis/Edmonton-Municipality-I/master/data/Edmonton_zoning.json")         //zoning
+                       .await(dataProcessor);
+
+                function dataProcessor(error, wards, neighbourhoods, zones) {
+
+                    if(error) throw error;
+                    
+                    var dataObjects = 
+                        [
+                            {
+                                file:      wards,
+                                colors:    ['#67001f','#b2182b','#d6604d','#f4a582','#fddbc7','#d1e5f0','#92c5de','#4393c3','#2166ac','#053061'],
+                                lineColor: "#bdc1bd",
+                                name:      "Wards"
+                            }
+
+                            ,{ 
+                                file:      neighbourhoods,
+                                colors:    ['#a50026','#d73027','#f46d43','#fdae61','#fee090','#ffffbf','#e0f3f8','#abd9e9','#74add1','#4575b4','#313695'],
+                                lineColor: "#7b7f7b",
+                                name:      "Neighbourhoods"
+                            }, 
+
+                            {
+                                file:      zones,
+                                colors:    ['#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd'],
+                                lineColor: "#6e6a6a",
+                                name:      "Zones"
+                            }
+                        ];
+
+                    //~-~-~-~-~-~-~-~Layer Control~-~-~-~-~-~-~-~
+                    var overlays = [];
+                    var overlayObject = new Object();
+
+                    dataObjects.forEach(function(d) { 
+                        var overlay = svgOVerlay(d.file, d.colors, d.lineColor, d.name);
+                        overlays.push(overlay);
+                    });
+
+                    //turning the overlays array[] to an associative array{}
+                    overlays.forEach(function(d){
+                        overlayObject[d[0]] = d[1];
+                    });
+
+                    L.control.layers({"Tilelayer": positron}, overlayObject).addTo(map);
+                    $.noty.close("loading") //close after all files and layers are loaded
+                    //~-~-~-~-~-~-~-~Layer Control~-~-~-~-~-~-~-~
+
+
+                    //~-~-~-~-~-~-~-~overlay~-~-~-~-~-~-~-~
+                    //turns my dataObjects to overlays on the leaflet map
+                    //using the L.d3SvgOverlay Leaflet plugin
+                    function svgOVerlay(file, colors, lineColor, name) {
+                        
+                        //http://bl.ocks.org/xEviL/0c4f628645c6c21c8b3a(L.d3SvgOverlay Geojson example)
+                        //I made custom file object(converted the array data to a json)
+                        //make overlay
+                        var features        = file.data.map(function(d){ return d["the_geom"]; });
+                        var dataLength      = features.length;
+                        var colorScale      = d3.scale.quantize()
+                                                .domain([0, dataLength -1])
+                                                .range(colors);
+                        var featuresOverlay = L.d3SvgOverlay(function(sel, proj) {
+
+                            var upd =  sel.selectAll("path").data(features);
+                            upd.enter().append("path")
+                            .attr({
+                                    d:              proj.pathFromGeojson,
+                                    stroke:         lineColor,
+                                    fill:           function(d, i){ return colorScale(i);},
+                                    "fill-opacity": 0.6,
+                                    "stroke-width": 1 / (proj.scale) * 0.5
+                                })
+                            .append("title")
+                            .html(tipHtml);
+                            });
+                        
+                        //adding overlay to map
+                        featuresOverlay.addTo(map);
+
+                        
+                        //apply tiphtml for each path
+                        //neighbourhoods and wards similar data keys, while zone's are unique
+                        function tipHtml(d, i) {
+                            
+                            var object = file.data[i];
+                            switch (name) {
+                                case "Zones":
+                                    return object["zoning"] + "</br>" + object["descript"];
+                                    break;
+                            
+                                default:
+                                    return object["name"] + "</br>" + parseFloat(object["area_km2"]).toFixed(3)+" "+"km&#94;"+"2";
+                                    break;
+                            }
+                        };//tip html
+
+                        return [name, featuresOverlay];
+                            
+                    }//svgOverlay
+                    //~-~-~-~-~-~-~-~overlay~-~-~-~-~-~-~-~
+
+                };//dataProcessor
+                //------------Data Loading and Processing------------ 
+
+            })//document.addEventListener
+
+        </script>
+    </body>
+</html>
