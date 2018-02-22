@@ -1,5 +1,6 @@
 ## Edmonton Municipality II
 ![](municipality-responsive.gif)<br/>
+![](clickable-map.png)
 ## Map
 Purpose: View and explore Wards, Neighbourhoods, and, Zoning Bylaw of Edmonton
 
