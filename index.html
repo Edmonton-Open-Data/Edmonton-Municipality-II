@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="user-scalable=no initial-scale=1.2">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
         <title>Edmonton Municipality</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css"/>
@@ -12,14 +12,11 @@
                 margin: 0;
                 overflow: hidden;
             }
-
             #map {
                 height: 100%;
                 width: 100%;
             }
-
             .leaflet-overlay-pane svg path { pointer-events: auto; }
-
             .leaflet-overlay-pane svg path:hover {
                 fill: transparent;
                 stroke: black;
@@ -31,43 +28,34 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-queue/1.2.3/queue.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/leaflet-d3-svg-overlay@2.2.0/L.D3SvgOverlay.min.js"></script>
+        <script src="https://unpkg.com/topojson-client@3"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-noty/2.4.1/packaged/jquery.noty.packaged.min.js"></script>
         <script>
             
             document.addEventListener("DOMContentLoaded", function() { 
-
-                var log = console.log;
-                noty( {id: "loading", text: "Loading Files (about 25.3MB). Please wait...", layout: "topCenter"} ); //to indicate files loading
-
+                noty( {id: "loading", text: "Loading Map. Please wait...", layout: "topCenter"} ); //to indicate files loading
+                var print = console.log;
+                var dir   = console.dir;
 
                 //------------map------------
                 var map = L.map("map", {
-                    zoomSnap: 0.01,
-                    zoom:     zoomSelector(window.innerWidth)
+                    zoomSnap:  0.01,
+                    zoom:      zoomSelector(window.innerWidth),
+                    touchZoom: false,
+                    minZoom:   10.06
                     });
-                var positron = L.tileLayer("http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
-                    attribution: "©OpenStreetMap, ©CartoDB",
-                    minZoom:     1,
-                    maxZoom:     18
+                var positron = L.tileLayer("https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png", {
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 19
                     });
-                var positronLabels = L.tileLayer("http://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png", {
-                    attribution: "©OpenStreetMap, ©CartoDB",
-                    pane:        "labels"
-                    });
-
                 map.setView( [53.55589, -113.506643] );
-                L.control.scale().addTo(map); 
-
-                //http://leafletjs.com/examples/map-panes/
+                map.attributionControl.setPosition('topright');
+                map.zoomControl.setPosition('bottomright');
+                L.control.scale().setPosition('topleft').addTo(map); 
                 positron.addTo(map);
 
-                map.createPane('labels');
-                map.getPane('labels').style.zIndex = 650;
-                map.getPane('labels').style.pointerEvents = 'none';
-                positronLabels.addTo(map);
-                
                 //making the map responsive
                 map.on("resize", function() {
                     map.setZoom(zoomSelector(window.innerWidth));
@@ -84,120 +72,104 @@
                 }
                 //------------map------------
                 
-
                 //------------Data Loading and Processing------------ 
                 //loading the data
                 queue()
-                       .defer(d3.json, "https://raw.githubusercontent.com/mikelotis/Edmonton-Municipality-I/master/data/Edmonton_wards.json")            //wards
-                       .defer(d3.json, "https://raw.githubusercontent.com/mikelotis/Edmonton-Municipality-I/master/data/Edmonton_neighbourhoods.json")  //neighbourhoods
-                       .defer(d3.json, "https://raw.githubusercontent.com/mikelotis/Edmonton-Municipality-I/master/data/Edmonton_zoning.json")         //zoning
-                       .await(dataProcessor);
+                       .defer(d3.json, "https://cdn.rawgit.com/Edmonton-Open-Data/Edmonton-Municipality-II/master/data/wards-topo.json")          //wards
+                       .defer(d3.json, "https://cdn.rawgit.com/Edmonton-Open-Data/Edmonton-Municipality-II/master/data/neighbourhood-topo.json") //neighbourhoods
+                       .defer(d3.json, "https://cdn.rawgit.com/Edmonton-Open-Data/Edmonton-Municipality-II/master/data/zoning-topo.json")       //zoning
+                       .await(dataProcessor);           
 
                 function dataProcessor(error, wards, neighbourhoods, zones) {
-
                     if(error) throw error;
-                    
                     var dataObjects = 
                         [
                             {
                                 file:      wards,
                                 colors:    ['#67001f','#b2182b','#d6604d','#f4a582','#fddbc7','#d1e5f0','#92c5de','#4393c3','#2166ac','#053061'],
-                                lineColor: "#bdc1bd",
-                                name:      "Wards"
+                                lineColor: "#bdc1bd"
                             }
-
                             ,{ 
                                 file:      neighbourhoods,
                                 colors:    ['#a50026','#d73027','#f46d43','#fdae61','#fee090','#ffffbf','#abd9e9','#74add1','#4575b4','#313695'],
-                                lineColor: "#7b7f7b",
-                                name:      "Neighbourhoods"
-                            }, 
-
+                                lineColor: "#7b7f7b"
+                            },
                             {
                                 file:      zones,
                                 colors:    ['#d53e4f','#f46d43','#fdae61','#fee08b','#ffffbf','#e6f598','#abdda4','#66c2a5','#3288bd'],
                                 lineColor: "#6e6a6a",
-                                name:      "Zones"
+                                name:      "zoning"
                             }
                         ];
-
-                    //~-~-~-~-~-~-~-~Layer Control~-~-~-~-~-~-~-~
                     var overlays = [];
                     var overlayObject = new Object();
-
-                    dataObjects.forEach(function(d) { 
-                        var overlay = svgOVerlay(d.file, d.colors, d.lineColor, d.name);
-                        overlays.push(overlay);
+                    // adding name attribute for identification
+                    dataObjects.forEach(function(d, i){
+                        d.name = Object.keys(d.file.objects)[0];
                     });
 
-                    //turning the overlays array[] to an associative array{}
+                    //~-~-~-~-~-~-~-~overlay~-~-~-~-~-~-~-~
+                    dataObjects.forEach(function(d, i){
+                        var features   = topojson.feature(d.file, d.file["objects"][d.name]).features;
+                        var dataLength = features.length;
+                        var colorScale = d3.scale.quantize().domain([0, dataLength -1]).range(d.colors);
+                        //http://leafletjs.com/examples/choropleth/
+                        var geojsonLayer = L.geoJSON(features, {
+                            style: function style(feature, index) {
+                                
+                                return {
+                                    color: d.lineColor,
+                                    weight: 1,
+                                    opacity: 0.45, 
+                                    fillColor: colorScale(getRandomIntInclusive(0, dataLength)),
+                                    fillOpacity:0.45
+                                };
+                            },
+
+                            onEachFeature: function onEachFeature(feature, layer) {
+                                var property = feature.properties;
+                                switch (d.name) {
+                                    case "zoning":
+                                        return layer.bindPopup(property["zoning"] + "<br/>" + " " + property["descript"]);
+                                        break;
+                                
+                                    default:
+                                        return layer.bindPopup(property["name"] + "<br/>" + " " + parseFloat(property["area_km2"]).toFixed(3)+" "+"km&#94;"+"2");
+                                        break;
+                                }
+                            }
+                        });
+
+                        //adding layer to map
+                        geojsonLayer.addTo(map);
+
+                        //push layer and name to overlays to build layercontrol later
+                        overlays.push([d.name, geojsonLayer]);
+                    });
+                    //~-~-~-~-~-~-~-~overlay~-~-~-~-~-~-~-~
+
+                    //~-~-~-~-~-~-~-~Layer Control~-~-~-~-~-~-~-~
+                    //turning the overlays array[] to an associative array{}(object)
                     overlays.forEach(function(d){
                         overlayObject[d[0]] = d[1];
                     });
 
-                    L.control.layers({"Tilelayer": positron}, overlayObject).addTo(map);
+                    //using the object to make layer control
+                    L.control.layers({"Tilelayer": positron}, overlayObject).setPosition('bottomleft').addTo(map);
+                    
                     $.noty.close("loading") //close after all files and layers are loaded
-                    //~-~-~-~-~-~-~-~Layer Control~-~-~-~-~-~-~-~
 
-
-                    //~-~-~-~-~-~-~-~overlay~-~-~-~-~-~-~-~
-                    //turns my dataObjects to overlays on the leaflet map
-                    //using the L.d3SvgOverlay Leaflet plugin
-                    function svgOVerlay(file, colors, lineColor, name) {
-                        
-                        //http://bl.ocks.org/xEviL/0c4f628645c6c21c8b3a(L.d3SvgOverlay Geojson example)
-                        //I made custom file object(converted the array data to a json)
-                        //make overlay
-                        var features        = file.data.map(function(d){ return d["the_geom"]; });
-                        var dataLength      = features.length;
-                        var colorScale      = d3.scale.quantize()
-                                                .domain([0, dataLength -1])
-                                                .range(colors);
-                        var featuresOverlay = L.d3SvgOverlay(function(sel, proj) {
-
-                            var upd =  sel.selectAll("path").data(features);
-                            upd.enter().append("path")
-                            .attr({
-                                    d:              proj.pathFromGeojson,
-                                    stroke:         lineColor,
-                                    fill:           function(d, i){ return colorScale(i);},
-                                    "fill-opacity": 0.6,
-                                    "stroke-width": 1 / (proj.scale) * 0.5
-                                })
-                            .append("title")
-                            .html(tipHtml);
-                            });
-                        
-                        //adding overlay to map
-                        featuresOverlay.addTo(map);
-
-                        
-                        //apply tiphtml for each path
-                        //neighbourhoods and wards similar data keys, while zone's are unique
-                        function tipHtml(d, i) {
-                            
-                            var object = file.data[i];
-                            switch (name) {
-                                case "Zones":
-                                    return object["zoning"] + "<br/>" + " " + object["descript"];
-                                    break;
-                            
-                                default:
-                                    return object["name"] + "<br/>" + " " + parseFloat(object["area_km2"]).toFixed(3)+" "+"km&#94;"+"2";
-                                    break;
-                            }
-                        };//tip html
-
-                        return [name, featuresOverlay];
-                            
-                    }//svgOverlay
-                    //~-~-~-~-~-~-~-~overlay~-~-~-~-~-~-~-~
+                    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+                    function getRandomIntInclusive(min, max) {
+                        min = Math.ceil(min);
+                        max = Math.floor(max);
+                        return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+                    }
 
                 };//dataProcessor
                 //------------Data Loading and Processing------------ 
-
             })//document.addEventListener
-
         </script>
     </body>
 </html>
+
