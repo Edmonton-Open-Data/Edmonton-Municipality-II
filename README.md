@@ -3,7 +3,7 @@
 ![](clickable-map.png)
 ## Map
 Purpose: View and explore Wards, Neighbourhoods, and, Zoning Bylaw of Edmonton<br>
-Best viewed in: Chrome
+Best viewed in: Google Chrome
 
 ## To-do's
 - [x] Minimize data with [topojson](https://github.com/topojson/topojson) eg. reducing coordinates accuracy and removing unwanted properties
