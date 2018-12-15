@@ -95,9 +95,9 @@
                 //------------Data Loading and Processing------------ 
                 //loading the data
                 queue()
-                       .defer(d3.json, "https://cdn.rawgit.com/Edmonton-Open-Data/Edmonton-Municipality-II/master/data/wards-topo.json")          //wards
-                       .defer(d3.json, "https://cdn.rawgit.com/Edmonton-Open-Data/Edmonton-Municipality-II/master/data/neighbourhood-topo.json") //neighbourhoods
-                       .defer(d3.json, "https://cdn.rawgit.com/Edmonton-Open-Data/Edmonton-Municipality-II/master/data/zoning-topo.json")       //zoning
+                       .defer(d3.json, "data/wards-topo.json")          //wards
+                       .defer(d3.json, "data/neighbourhood-topo.json") //neighbourhoods
+                       .defer(d3.json, "data/zoning-topo.json")       //zoning
                        .await(dataProcessor);           
 
                 function dataProcessor(error, wards, neighbourhoods, zones) {
